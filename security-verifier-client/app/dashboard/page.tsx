@@ -1,0 +1,652 @@
+'use client'
+
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import {
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Area, AreaChart,
+} from 'recharts'
+import { getFactories } from '../api/factories.api'
+import { getPatrolReport, PatrolReportItem } from '../api/report'
+
+/* ================================================================
+   TYPES
+================================================================ */
+type Factory = { factory_code: string; factory_name: string }
+
+/* ================================================================
+   HELPERS
+================================================================ */
+function fmtTime(t: string | null) {
+  if (!t) return '—'
+  try { return new Date(t).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) }
+  catch { return t }
+}
+
+function exportCSV(data: PatrolReportItem[], factory: string, date: string) {
+  const header = ['Round', 'QR Point', 'Guard', 'Scan Time', 'Status', 'Lat', 'Lon']
+  const rows = data.map(r => [
+    r.round, `"${r.qr_name}"`, `"${r.guard_name || ''}"`,
+    r.scan_time ? fmtTime(r.scan_time) : '',
+    r.status, r.lat || '', r.lon || ''
+  ])
+  const csv = [header, ...rows].map(r => r.join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = `patrol_${factory}_${date}.csv`; a.click()
+  URL.revokeObjectURL(url)
+}
+
+/* ================================================================
+   STAT CARD
+================================================================ */
+function StatCard({ label, value, sub, color, bg, icon }: {
+  label: string; value: string | number; sub?: string
+  color: string; bg: string; icon?: string
+}) {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 relative overflow-hidden">
+      <div className={`absolute left-0 top-0 h-full w-1 rounded-l-2xl ${bg}`} />
+      <div className="pl-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">{label}</p>
+        <p className={`mt-1.5 text-xl font-bold ${color}`}>{value}</p>
+        {sub && <p className="mt-0.5 text-xs text-slate-400">{sub}</p>}
+      </div>
+    </div>
+  )
+}
+
+/* ================================================================
+   PROGRESS BAR (for scan point coverage)
+================================================================ */
+function CoverageBar({ name, done, total }: { name: string; done: number; total: number }) {
+  const pct = total ? Math.round((done / total) * 100) : 0
+  const color = pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-400' : 'bg-rose-500'
+  return (
+    <div className="mb-3">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-medium text-slate-600 truncate max-w-[180px]">{name}</span>
+        <span className={`text-xs font-bold ${pct === 100 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{pct}%</span>
+      </div>
+      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${color} transition-all duration-700`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
+}
+
+/* ================================================================
+   GUARD LEADERBOARD ROW
+================================================================ */
+function LeaderRow({ rank, name, scanned, missed, total }: {
+  rank: number; name: string; scanned: number; missed: number; total: number
+}) {
+  const pct = total ? Math.round((scanned / total) * 100) : 0
+  const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`
+  const color = pct >= 90 ? 'text-emerald-600 bg-emerald-50' : pct >= 70 ? 'text-amber-600 bg-amber-50' : 'text-rose-600 bg-rose-50'
+  return (
+    <div className="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
+      <div className="w-8 text-center text-lg">{medal}</div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-sm font-semibold text-slate-700 truncate">{name}</span>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${color}`}>{pct}%</span>
+        </div>
+        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${pct >= 90 ? 'bg-emerald-500' : pct >= 70 ? 'bg-amber-400' : 'bg-rose-500'}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <p className="text-xs text-slate-400 mt-0.5">{scanned} scanned · {missed} missed</p>
+      </div>
+    </div>
+  )
+}
+
+/* ================================================================
+   MAIN PAGE
+================================================================ */
+export default function DashboardPage() {
+  const router = useRouter()
+  const today  = useMemo(() => new Date().toISOString().slice(0, 10), [])
+
+  const [adminName, setAdminName]             = useState('')
+  const [factories, setFactories]             = useState<Factory[]>([])
+  const [selectedFactory, setSelectedFactory] = useState('')
+  const [selectedDate, setSelectedDate]       = useState(today)
+  const [report, setReport]                   = useState<PatrolReportItem[]>([])
+  const [loading, setLoading]                 = useState(false)
+  const [lastUpdated, setLastUpdated]         = useState('')
+  const [autoRefresh, setAutoRefresh]         = useState(false)
+
+  /* auth check */
+  useEffect(() => {
+    const name = localStorage.getItem('adminName')
+    if (!name) { router.push('/login'); return }
+    setAdminName(name)
+  }, [router])
+
+  /* load factories */
+  useEffect(() => {
+    getFactories()
+      .then((res: any) => {
+        const list: Factory[] = res?.data || res || []
+        setFactories(list)
+        if (list.length) setSelectedFactory(list[0].factory_code)
+      })
+      .catch(() => {})
+  }, [])
+
+  const fetchReport = useCallback(() => {
+    if (!selectedFactory || !selectedDate) return
+    setLoading(true)
+    getPatrolReport(selectedFactory, selectedDate)
+      .then(data => { setReport(data); setLastUpdated(new Date().toLocaleTimeString()) })
+      .catch(() => setReport([]))
+      .finally(() => setLoading(false))
+  }, [selectedFactory, selectedDate])
+
+  /* auto-fetch when factory/date changes */
+  useEffect(() => { fetchReport() }, [fetchReport])
+
+  /* auto-refresh every 60s when enabled */
+  useEffect(() => {
+    if (!autoRefresh || selectedDate !== today) return
+    const id = setInterval(fetchReport, 60_000)
+    return () => clearInterval(id)
+  }, [autoRefresh, fetchReport, selectedDate, today])
+
+  /* ================================================================
+     COMPUTED STATS (time-aware)
+  ================================================================ */
+  const stats = useMemo(() => {
+    const empty = {
+      total: 0, completed: 0, missed: 0, pending: 0, rate: 0, lastScan: null as string | null,
+      pie: [], roundSummary: [], guardLeaderboard: [], coverageByPoint: [],
+      hourlyActivity: [], recentActivity: [], isPartialDay: false, nothingScannedToday: false
+    }
+    if (!report.length) return empty
+
+    const isToday = selectedDate === today
+
+    /* ── time-boundary ── */
+    const scannedRounds = report.filter(r => r.scan_time !== null).map(r => r.round)
+    const maxScannedRound = scannedRounds.length ? Math.max(...scannedRounds) : 0
+    const nothingScannedToday = isToday && maxScannedRound === 0
+    const isPartialDay = isToday && maxScannedRound > 0
+
+    const effective = isPartialDay
+      ? report.filter(r => r.round <= maxScannedRound + 1)
+      : report
+    const pending = isToday ? report.length - effective.length : 0
+
+    /* ── base stats ── */
+    const completed = effective.filter(r => r.status === 'SUCCESS').length
+    const missed    = nothingScannedToday ? 0 : effective.filter(r => r.status !== 'SUCCESS').length
+    const total     = completed + missed
+    const rate      = total ? Math.round((completed / total) * 100) : 0
+
+    /* ── last scan time ── */
+    const scanTimes = effective.filter(r => r.scan_time).map(r => r.scan_time as string).sort()
+    const lastScan  = scanTimes.length ? scanTimes[scanTimes.length - 1] : null
+
+    /* ── pie ── */
+    const pie = [
+      { name: 'Completed', value: completed, color: '#6366f1' },
+      { name: 'Missed',    value: missed,    color: '#f43f5e' },
+      ...(pending > 0 ? [{ name: 'Not Due Yet', value: pending, color: '#94a3b8' }] : []),
+    ]
+
+    /* ── rounds summary ── */
+    const roundNums = [...new Set(effective.map(r => r.round))].sort((a, b) => a - b)
+    const roundSummary = nothingScannedToday ? [] : roundNums.map(rnd => {
+      const items = effective.filter(r => r.round === rnd)
+      return {
+        round: `R${rnd}`,
+        completed: items.filter(i => i.status === 'SUCCESS').length,
+        missed:    items.filter(i => i.status !== 'SUCCESS').length,
+      }
+    })
+
+    /* ── guard leaderboard ── */
+    const guardMap: Record<string, { scanned: number; missed: number }> = {}
+    effective.forEach(r => {
+      const g = r.guard_name || 'Unknown'
+      if (!guardMap[g]) guardMap[g] = { scanned: 0, missed: 0 }
+      if (r.status === 'SUCCESS') guardMap[g].scanned++
+      else if (!nothingScannedToday) guardMap[g].missed++
+    })
+    const guardLeaderboard = Object.entries(guardMap)
+      .filter(([n, d]) => n !== 'Unknown' || d.scanned > 0)
+      .map(([name, d]) => ({ name, ...d, total: d.scanned + d.missed }))
+      .sort((a, b) => b.scanned / (b.total || 1) - a.scanned / (a.total || 1))
+
+    /* ── scan point coverage (progress bars) ── */
+    const pointMap: Record<string, { done: number; total: number }> = {}
+    effective.forEach(r => {
+      if (!pointMap[r.qr_name]) pointMap[r.qr_name] = { done: 0, total: 0 }
+      pointMap[r.qr_name].total++
+      if (r.status === 'SUCCESS') pointMap[r.qr_name].done++
+    })
+    const coverageByPoint = Object.entries(pointMap)
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => (a.done / a.total) - (b.done / b.total))  // worst first
+
+    /* ── hourly activity ── */
+    const hourMap: Record<number, number> = {}
+    effective
+      .filter(r => r.scan_time && r.status === 'SUCCESS')
+      .forEach(r => {
+        const h = new Date(r.scan_time!).getHours()
+        hourMap[h] = (hourMap[h] || 0) + 1
+      })
+    const hourlyActivity = Array.from({ length: 24 }, (_, h) => ({
+      hour: `${String(h).padStart(2, '0')}:00`,
+      scans: hourMap[h] || 0,
+    })).filter(h => h.scans > 0 || (Object.keys(hourMap).length === 0))
+
+    /* ── recent activity feed (last 10 successful scans) ── */
+    const recentActivity = effective
+      .filter(r => r.status === 'SUCCESS' && r.scan_time)
+      .sort((a, b) => (b.scan_time || '').localeCompare(a.scan_time || ''))
+      .slice(0, 10)
+
+    return {
+      total, completed, missed, pending, rate, lastScan, pie, roundSummary,
+      guardLeaderboard, coverageByPoint, hourlyActivity, recentActivity,
+      isPartialDay, nothingScannedToday,
+    }
+  }, [report, selectedDate, today])
+
+  const selectedFactoryName = factories.find(f => f.factory_code === selectedFactory)?.factory_name || selectedFactory
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* ── HEADER ── */}
+        <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Analytics Dashboard</h1>
+            <p className="mt-1 text-slate-500 text-sm">
+              {selectedFactoryName && <span className="font-medium text-indigo-600">{selectedFactoryName}</span>}
+              {selectedFactoryName && ' · '}
+              Patrol performance overview
+              {lastUpdated && <span className="ml-2 text-emerald-600 font-medium">· Updated {lastUpdated}</span>}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+            {adminName}
+          </div>
+        </div>
+
+        {/* ── CONTROLS BAR ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
+          <div className="flex flex-wrap items-end gap-4">
+
+            <div className="flex-1 min-w-[160px]">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Factory</label>
+              <select
+                value={selectedFactory}
+                onChange={e => setSelectedFactory(e.target.value)}
+                className="w-full mt-2 pl-3 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {factories.map(f => (
+                  <option key={f.factory_code} value={f.factory_code}>{f.factory_name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex-1 min-w-[140px]">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Date</label>
+              <input
+                type="date" value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+                className="w-full mt-2 pl-3 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <button
+              onClick={fetchReport} disabled={loading || !selectedFactory}
+              className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-lg flex items-center gap-2 text-sm transition-colors"
+            >
+              {loading
+                ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />Loading…</>
+                : '📊 Load'}
+            </button>
+
+            {/* Auto-refresh toggle (today only) */}
+            {selectedDate === today && (
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <div
+                  onClick={() => setAutoRefresh(v => !v)}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${autoRefresh ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                >
+                  <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${autoRefresh ? 'translate-x-5' : ''}`} />
+                </div>
+                <span className="text-xs font-semibold text-slate-500">Auto-refresh</span>
+              </label>
+            )}
+
+            {/* Export CSV */}
+            {report.length > 0 && (
+              <button
+                onClick={() => exportCSV(report, selectedFactory, selectedDate)}
+                className="border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-semibold px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm transition-colors"
+              >
+                ⬇️ Export CSV
+              </button>
+            )}
+
+            {/* Go to full report */}
+            {report.length > 0 && (
+              <button
+                onClick={() => router.push('/report-download')}
+                className="border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm transition-colors"
+              >
+                📄 Full Report
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── STAT CARDS ── */}
+        <div className="grid grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+          <StatCard label="Effective Scans"  value={stats.total}           sub="Rounds due so far"  color="text-indigo-600"  bg="bg-indigo-500"  icon="📋" />
+          <StatCard label="Completed"        value={stats.completed}       sub={`${stats.rate}% rate`} color="text-emerald-600" bg="bg-emerald-500" icon="✅" />
+          <StatCard label="Missed"           value={stats.missed}          sub="Truly skipped"      color="text-rose-600"    bg="bg-rose-500"    icon="⚠️" />
+          <StatCard label="Not Due Yet"      value={stats.pending ?? 0}    sub="Future rounds"      color="text-slate-500"   bg="bg-slate-400"   icon="🕐" />
+          <StatCard
+            label="Last Scan"
+            value={stats.lastScan ? fmtTime(stats.lastScan) : '—'}
+            sub="Most recent activity"
+            color="text-violet-600" bg="bg-violet-500" icon="🔍"
+          />
+        </div>
+
+        {/* ── DAY PROGRESS BAR ── */}
+        {report.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-700">Day Completion Progress</h2>
+                <p className="text-xs text-slate-400">
+                  {stats.completed} of {stats.total + (stats.pending ?? 0)} total expected scans completed
+                </p>
+              </div>
+              <span className={`text-2xl font-extrabold ${stats.rate >= 90 ? 'text-emerald-600' : stats.rate >= 60 ? 'text-amber-500' : 'text-rose-600'}`}>
+                {stats.rate}%
+              </span>
+            </div>
+            <div className="h-4 bg-slate-100 rounded-full overflow-hidden flex">
+              {/* completed */}
+              <div
+                className="h-full bg-indigo-500 transition-all duration-700 flex items-center justify-center"
+                style={{ width: `${(stats.completed / (report.length || 1)) * 100}%` }}
+              />
+              {/* missed */}
+              <div
+                className="h-full bg-rose-400 transition-all duration-700"
+                style={{ width: `${(stats.missed / (report.length || 1)) * 100}%` }}
+              />
+              {/* pending */}
+              <div
+                className="h-full bg-slate-200 transition-all duration-700"
+                style={{ width: `${((stats.pending ?? 0) / (report.length || 1)) * 100}%` }}
+              />
+            </div>
+            <div className="flex items-center gap-5 mt-2 text-xs text-slate-400">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500 inline-block" />Completed</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />Missed</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-200 inline-block" />Not due yet</span>
+            </div>
+          </div>
+        )}
+
+        {/* ── BANNERS ── */}
+        {stats.nothingScannedToday && report.length > 0 && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+            <span className="text-2xl">⏳</span>
+            <div>
+              <p className="font-semibold text-amber-800">Patrol not started yet today</p>
+              <p className="text-sm text-amber-600">{report.length} rounds scheduled — no scans recorded yet. 0 marked as missed.</p>
+            </div>
+          </div>
+        )}
+        {stats.isPartialDay && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-4">
+            <span className="text-2xl">📍</span>
+            <div>
+              <p className="font-semibold text-indigo-800">Patrol in progress — live view</p>
+              <p className="text-sm text-indigo-600">
+                Showing only rounds due so far. <strong>{stats.pending ?? 0}</strong> future rounds excluded from missed count.
+                {autoRefresh && <span className="ml-2 text-emerald-600 font-semibold">· Auto-refreshing every 60s</span>}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── CHARTS ── */}
+        {report.length > 0 && !stats.nothingScannedToday ? (
+          <>
+            {/* ROW 1: Pie + Guard Leaderboard */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+              {/* Pie */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-1">Completion Overview</h2>
+                <p className="text-xs text-slate-400 mb-4">Completed · Missed · Not Due</p>
+                <ResponsiveContainer width="100%" height={240}>
+                  <PieChart>
+                    <Pie data={stats.pie} cx="50%" cy="50%" innerRadius={65} outerRadius={105} paddingAngle={4} dataKey="value">
+                      {stats.pie.map((e, i) => <Cell key={i} fill={e.color} stroke="transparent" />)}
+                    </Pie>
+                    <Tooltip contentStyle={{ borderRadius: 10, fontSize: 12, border: 'none', boxShadow: '0 4px 16px rgba(0,0,0,.1)' }} />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Guard Leaderboard */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-1">🏆 Guard Leaderboard</h2>
+                <p className="text-xs text-slate-400 mb-4">Ranked by completion rate</p>
+                <div className="overflow-y-auto max-h-64 pr-1">
+                  {stats.guardLeaderboard.length > 0
+                    ? stats.guardLeaderboard.map((g, i) => (
+                      <LeaderRow key={g.name} rank={i + 1} name={g.name}
+                        scanned={g.scanned} missed={g.missed} total={g.total} />
+                    ))
+                    : <p className="text-sm text-slate-400 text-center mt-10">No guard data</p>
+                  }
+                </div>
+              </div>
+            </div>
+
+            {/* ROW 2: Round-by-Round bar + Hourly activity */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+              {/* Round bar */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-1">Round-by-Round</h2>
+                <p className="text-xs text-slate-400 mb-4">Completed vs Missed per patrol round</p>
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={stats.roundSummary} barSize={10}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis dataKey="round" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ borderRadius: 10, fontSize: 12, border: 'none', boxShadow: '0 4px 16px rgba(0,0,0,.1)' }} />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                    <Bar dataKey="completed" fill="#6366f1" radius={[4, 4, 0, 0]} name="Completed" />
+                    <Bar dataKey="missed"    fill="#f43f5e" radius={[4, 4, 0, 0]} name="Missed" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Hourly Activity */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-1">📈 Hourly Activity</h2>
+                <p className="text-xs text-slate-400 mb-4">Successful scans by hour of day</p>
+                {stats.hourlyActivity.some(h => h.scans > 0) ? (
+                  <ResponsiveContainer width="100%" height={240}>
+                    <AreaChart data={stats.hourlyActivity}>
+                      <defs>
+                        <linearGradient id="hGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <XAxis dataKey="hour" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: 10, fontSize: 12, border: 'none', boxShadow: '0 4px 16px rgba(0,0,0,.1)' }} />
+                      <Area type="monotone" dataKey="scans" stroke="#6366f1" strokeWidth={2} fill="url(#hGrad)" dot={false} name="Scans" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-60 flex items-center justify-center text-slate-400 text-sm">No scan activity recorded</div>
+                )}
+              </div>
+            </div>
+
+            {/* ROW 3: Guard bar + Scan Point Coverage */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+              {/* Guard Performance Bar */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-1">Guard Scans vs Missed</h2>
+                <p className="text-xs text-slate-400 mb-4">Side-by-side comparison</p>
+                {stats.guardLeaderboard.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart
+                      data={stats.guardLeaderboard.slice(0, 8).map(g => ({
+                        name: g.name.split(' ')[0], scanned: g.scanned, missed: g.missed
+                      }))}
+                      barSize={14}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: 10, fontSize: 12, border: 'none', boxShadow: '0 4px 16px rgba(0,0,0,.1)' }} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="scanned" fill="#6366f1" radius={[6, 6, 0, 0]} name="Scanned" />
+                      <Bar dataKey="missed"  fill="#f43f5e" radius={[6, 6, 0, 0]} name="Missed" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : <div className="h-60 flex items-center justify-center text-slate-400 text-sm">No guard data</div>}
+              </div>
+
+              {/* Scan Point Coverage */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-1">📍 Scan Point Coverage</h2>
+                <p className="text-xs text-slate-400 mb-4">% of rounds scanned per checkpoint</p>
+                <div className="overflow-y-auto max-h-64 pr-1">
+                  {stats.coverageByPoint.map((p, i) => (
+                    <CoverageBar key={i} name={p.name} done={p.done} total={p.total} />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ROW 4: Recent Activity Feed + Missed Points Table */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+              {/* Recent Activity Feed */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-1">🕐 Recent Activity</h2>
+                <p className="text-xs text-slate-400 mb-4">Last 10 successful scans</p>
+                {stats.recentActivity.length > 0 ? (
+                  <div className="space-y-2">
+                    {stats.recentActivity.map((r, i) => (
+                      <div key={i} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+                        <div className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-slate-700 truncate">{r.qr_name}</span>
+                            <span className="text-xs text-slate-400 ml-2 flex-shrink-0">{fmtTime(r.scan_time)}</span>
+                          </div>
+                          <p className="text-xs text-slate-400">
+                            {r.guard_name || 'Unknown'} · Round {r.round}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-48 flex items-center justify-center text-slate-400 text-sm">No recent activity</div>
+                )}
+              </div>
+
+              {/* Missed Points Table */}
+              {stats.coverageByPoint.filter(p => p.done < p.total).length > 0 ? (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                  <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-1">⚠️ Problem Checkpoints</h2>
+                  <p className="text-xs text-slate-400 mb-4">Scan points with incomplete coverage</p>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-100">
+                          <th className="text-left py-2 px-2 text-xs font-semibold text-slate-500 uppercase">Point</th>
+                          <th className="text-center py-2 px-2 text-xs font-semibold text-emerald-600 uppercase">Done</th>
+                          <th className="text-center py-2 px-2 text-xs font-semibold text-rose-600 uppercase">Missed</th>
+                          <th className="text-center py-2 px-2 text-xs font-semibold text-slate-400 uppercase">Rate</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stats.coverageByPoint
+                          .filter(p => p.done < p.total)
+                          .map((p, i) => {
+                            const pct = Math.round((p.done / p.total) * 100)
+                            return (
+                              <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                                <td className="py-2 px-2 font-medium text-slate-700 text-xs">{p.name}</td>
+                                <td className="py-2 px-2 text-center">
+                                  <span className="text-xs font-bold text-emerald-600">✓ {p.done}</span>
+                                </td>
+                                <td className="py-2 px-2 text-center">
+                                  <span className="text-xs font-bold text-rose-600">✗ {p.total - p.done}</span>
+                                </td>
+                                <td className="py-2 px-2 text-center">
+                                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${pct >= 80 ? 'bg-emerald-50 text-emerald-600' : pct >= 50 ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'}`}>
+                                    {pct}%
+                                  </span>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : stats.completed > 0 ? (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col items-center justify-center gap-3 text-emerald-600">
+                  <span className="text-5xl">🎉</span>
+                  <p className="font-bold text-lg">All checkpoints covered!</p>
+                  <p className="text-sm text-slate-400">Every scan point has 100% coverage</p>
+                </div>
+              ) : null}
+            </div>
+          </>
+        ) : report.length === 0 && !loading ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 min-h-[300px] flex flex-col items-center justify-center gap-3 text-slate-400">
+            <span className="text-5xl">📊</span>
+            <p className="text-lg font-semibold text-slate-500">No data found</p>
+            <p className="text-sm">Select a factory and date, then click Load</p>
+          </div>
+        ) : loading ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 min-h-[300px] flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3 text-slate-400">
+              <div className="h-12 w-12 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
+              <p className="text-sm">Loading report data…</p>
+            </div>
+          </div>
+        ) : null}
+
+        <p className="mt-8 text-center text-xs text-slate-400">© {new Date().getFullYear()} Pentagon Security Verifier · Dashboard</p>
+      </div>
+    </div>
+  )
+}
