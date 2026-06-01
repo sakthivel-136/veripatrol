@@ -19,7 +19,7 @@ interface UserFormProps {
   user: SecurityUser | null
   onClose: () => void
   onSave: () => void
-  factories: string[]
+  factories: Array<{ factory_code: string; factory_name: string; location?: string | null }>
 }
 
 export default function UserForm({
@@ -35,7 +35,7 @@ export default function UserForm({
     security_id: user?.security_id ?? '',
     security_name: user?.security_name ?? '',
     security_password: '',
-    factory: user?.factory ?? factories?.[0] ?? '',
+    factory: user?.factory ?? factories?.[0]?.factory_code ?? '',
   }), [user, factories])
 
   const [formData, setFormData] =
@@ -169,12 +169,12 @@ export default function UserForm({
             name="factory"
             value={formData.factory}
             onChange={handleChange}
-            className="w-full border p-2 rounded"
+            className="w-full border p-2 rounded max-h-40 overflow-y-auto"
             required
           >
             {factories.map(f => (
-              <option key={f} value={f}>
-                {f}
+              <option key={f.factory_code} value={f.factory_code}>
+                {f.factory_code} - {f.factory_name} ({f.location || 'No location'})
               </option>
             ))}
           </select>

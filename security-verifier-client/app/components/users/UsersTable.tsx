@@ -10,52 +10,20 @@ import { SecurityUser } from '@/app/types/securityUser'
 
 interface UsersTableProps {
   users: SecurityUser[]
+  onAddUser: () => void
   onEditUser: (user: SecurityUser) => void
   onRefresh: () => Promise<void>
 }
 
 export default function UsersTable({
   users,
+  onAddUser,
   onEditUser,
   onRefresh,
 }: UsersTableProps) {
 
   const [visiblePasswords, setVisiblePasswords] =
     useState<Record<string, boolean>>({})
-
-  const [newUser, setNewUser] = useState({
-    security_id: '',
-    security_name: '',
-    security_password: '',
-    factory: '',
-  })
-
-  const handleAddUser = async () => {
-
-    if (!newUser.security_id ||
-        !newUser.security_name ||
-        !newUser.security_password ||
-        !newUser.factory) {
-      alert("All fields required")
-      return
-    }
-
-    try {
-      await createSecurityUser(newUser)
-
-      setNewUser({
-        security_id: '',
-        security_name: '',
-        security_password: '',
-        factory: '',
-      })
-
-      await onRefresh()
-
-    } catch (err) {
-      alert("Create failed")
-    }
-  }
 
   const handleDelete = async (id: string) => {
 
@@ -79,55 +47,14 @@ export default function UsersTable({
   return (
     <div className="p-6">
 
-      {/* ADD FORM */}
-      <div className="bg-white p-4 rounded shadow mb-6">
-        <h3 className="font-semibold mb-4">Add Security User</h3>
-
-        <div className="grid grid-cols-4 gap-4">
-
-          <input
-            placeholder="ID"
-            value={newUser.security_id}
-            onChange={(e) =>
-              setNewUser({ ...newUser, security_id: e.target.value })
-            }
-            className="border p-2 rounded"
-          />
-
-          <input
-            placeholder="Name"
-            value={newUser.security_name}
-            onChange={(e) =>
-              setNewUser({ ...newUser, security_name: e.target.value })
-            }
-            className="border p-2 rounded"
-          />
-
-          <input
-            placeholder="Password"
-            value={newUser.security_password}
-            onChange={(e) =>
-              setNewUser({ ...newUser, security_password: e.target.value })
-            }
-            className="border p-2 rounded"
-          />
-
-          <input
-            placeholder="Factory"
-            value={newUser.factory}
-            onChange={(e) =>
-              setNewUser({ ...newUser, factory: e.target.value })
-            }
-            className="border p-2 rounded"
-          />
-
-        </div>
-
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-bold text-gray-800">Security Users</h2>
         <button
-          onClick={handleAddUser}
-          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
+          onClick={onAddUser}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition"
         >
-          Add User
+          Add Security User
         </button>
       </div>
 
@@ -179,12 +106,20 @@ export default function UsersTable({
                 <td className="p-3 border">{user.factory}</td>
 
                 <td className="p-3 border text-right">
-                  <button
-                    className="text-red-600"
-                    onClick={() => handleDelete(user.security_id)}
-                  >
-                    Delete
-                  </button>
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      className="text-blue-600 hover:text-blue-800 font-semibold"
+                      onClick={() => onEditUser(user)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="text-red-600 hover:text-red-800 font-semibold"
+                      onClick={() => handleDelete(user.security_id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </td>
 
               </tr>
