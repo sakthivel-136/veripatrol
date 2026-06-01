@@ -47,12 +47,9 @@ export default function AverageRoundTimeCard({ averageTime, targetTime }: Averag
   const maxVal = 40;
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
-      const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      setData((prev) => [...prev.slice(1), { time: timeString, count: averageTime || Math.floor(Math.random() * 25) + 10 }]);
-    }, 5000);
-    return () => clearInterval(interval);
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setData((prev) => [...prev.slice(1), { time: timeString, count: averageTime || 0 }]);
   }, [averageTime]);
 
   const createSmoothPath = () => {

@@ -119,7 +119,6 @@ export default function DashboardPage() {
   const [report, setReport]                   = useState<PatrolReportItem[]>([])
   const [loading, setLoading]                 = useState(false)
   const [lastUpdated, setLastUpdated]         = useState('')
-  const [autoRefresh, setAutoRefresh]         = useState(false)
 
   /* auth check */
   useEffect(() => {
@@ -150,13 +149,6 @@ export default function DashboardPage() {
 
   /* auto-fetch when factory/date changes */
   useEffect(() => { fetchReport() }, [fetchReport])
-
-  /* auto-refresh every 60s when enabled */
-  useEffect(() => {
-    if (!autoRefresh || selectedDate !== today) return
-    const id = setInterval(fetchReport, 60_000)
-    return () => clearInterval(id)
-  }, [autoRefresh, fetchReport, selectedDate, today])
 
   /* ================================================================
      COMPUTED STATS (time-aware)
@@ -318,18 +310,7 @@ export default function DashboardPage() {
                 : '📊 Load'}
             </button>
 
-            {/* Auto-refresh toggle (today only) */}
-            {selectedDate === today && (
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <div
-                  onClick={() => setAutoRefresh(v => !v)}
-                  className={`relative w-10 h-5 rounded-full transition-colors ${autoRefresh ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                >
-                  <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${autoRefresh ? 'translate-x-5' : ''}`} />
-                </div>
-                <span className="text-xs font-semibold text-slate-500">Auto-refresh</span>
-              </label>
-            )}
+
 
             {/* Export CSV */}
             {report.length > 0 && (
@@ -423,7 +404,6 @@ export default function DashboardPage() {
               <p className="font-semibold text-indigo-800">Patrol in progress — live view</p>
               <p className="text-sm text-indigo-600">
                 Showing only rounds due so far. <strong>{stats.pending ?? 0}</strong> future rounds excluded from missed count.
-                {autoRefresh && <span className="ml-2 text-emerald-600 font-semibold">· Auto-refreshing every 60s</span>}
               </p>
             </div>
           </div>

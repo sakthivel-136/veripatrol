@@ -33,20 +33,11 @@ export default function RoundsStatusChart({ data }: RoundsStatusChartProps) {
   // Calculate total for the center text
   const totalValue = (chartData ?? []).reduce((acc, curr) => acc + curr.value, 0);
 
-  // Simulate Live Data Updates (Slices resizing)
   useEffect(() => {
-    const interval = setInterval(() => {
-      setChartData((prev) => {
-        // Slightly vary values to show the chart is "alive"
-        return prev.map((item) => ({
-          ...item,
-          value: Math.max(5, item.value + Math.floor(Math.random() * 10) - 5),
-        }));
-      });
-    }, 3000); // Update every 3 seconds
-
-    return () => clearInterval(interval);
-  }, []);
+    if (data) {
+      setChartData(data);
+    }
+  }, [data]);
 
   return (
     // Consistent Card Styling: White, Clean, Shadow
