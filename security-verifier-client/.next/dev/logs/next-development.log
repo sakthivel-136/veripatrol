@@ -1,0 +1,4 @@
+[00:00:01.480] Server  LOG      ✓ Ready in 1063ms
+[00:00:26.652] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:26.802] Browser WARN    Image with src "/logocom.jpg" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[00:00:43.641] Browser WARN    Image with src "/logocomm.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
