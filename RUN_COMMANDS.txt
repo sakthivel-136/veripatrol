@@ -1,0 +1,24 @@
+Pentagon Security Verifier - Running Commands
+
+Prerequisites:
+- Make sure to rename 'dummy.txt' to '.env' in both folders and configure them.
+
+1. RUN BACKEND (FastAPI):
+Open a terminal in the 'security-verifier-server' directory and run:
+---------------------------------------------------------------------
+venv\Scripts\activate
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+---------------------------------------------------------------------
+
+2. RUN FRONTEND (Next.js - Development Mode):
+Open another terminal in the 'security-verifier-client' directory and run:
+---------------------------------------------------------------------
+npm run dev
+---------------------------------------------------------------------
+
+3. RUN FRONTEND (Next.js - Production Mode):
+Open another terminal in the 'security-verifier-client' directory and run:
+---------------------------------------------------------------------
+npm run build
+npm run start
+---------------------------------------------------------------------
