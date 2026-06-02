@@ -9,6 +9,7 @@ import {
   createScanPoint,
   updateScanPoint,
 } from '../api/scanPoints.api'
+import { useAuthGuard } from '../services/auth.guard'
 
 /* ================= TYPES ================= */
 
@@ -21,6 +22,7 @@ type StatusFilter = 'All' | 'Active' | 'Inactive'
 type PriorityFilter = 'All' | 'Low' | 'Medium' | 'High'
 
 export default function ScanPointsPage() {
+  const { authorized } = useAuthGuard()
   const [scanPoints, setScanPoints] = useState<ScanPoint[]>([])
   const [factories, setFactories] = useState<Factory[]>([])
   const [selectedFactory, setSelectedFactory] = useState<string>('')
@@ -33,6 +35,7 @@ export default function ScanPointsPage() {
 
    /* ================= LOAD FACTORIES ================= */
   useEffect(() => {
+    if (!authorized) return
     const API_BASE_URL = 'http://127.0.0.1:8000'; // Move to .env file in production
     const FACTORY_ENDPOINT = `${API_BASE_URL}/factories/minimal`;
 
@@ -62,11 +65,11 @@ export default function ScanPointsPage() {
         console.error('⚠️ Network or Parsing Error:', err)
         setFactories([]) 
       })
-  }, [])
+  }, [authorized])
 
   /* ================= LOAD SCAN POINTS ================= */
   useEffect(() => {
-    if (!selectedFactory) return
+    if (!authorized || !selectedFactory) return
 
     getScanPointsByFactory(selectedFactory)
       .then((data: ScanPoint[]) => {
@@ -76,7 +79,7 @@ export default function ScanPointsPage() {
         console.error('Failed to load scan points:', err)
         setScanPoints([])
       })
-  }, [selectedFactory])
+  }, [selectedFactory, authorized])
 
   /* ================= FILTER ================= */
   const visibleScanPoints = scanPoints.filter(sp => {
@@ -86,6 +89,10 @@ export default function ScanPointsPage() {
       return false
     return true
   })
+
+  if (!authorized) {
+    return <div className="p-6 text-white min-h-screen bg-[#07071f] flex items-center justify-center">Checking access...</div>
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 p-8 font-sans selection:bg-blue-100 selection:text-blue-900">

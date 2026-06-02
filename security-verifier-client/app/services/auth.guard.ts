@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getUser, isAuthenticated } from "./token.service";
 
@@ -15,12 +15,14 @@ interface GuardOptions {
 
 export const useAuthGuard = (options?: GuardOptions) => {
   const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
 
   const checkAuth = useCallback(() => {
     const authenticated = isAuthenticated();
 
     // 🔒 1. If not authenticated → redirect to login
     if (!authenticated) {
+      setAuthorized(false);
       router.replace("/login");
       return;
     }
@@ -29,15 +31,20 @@ export const useAuthGuard = (options?: GuardOptions) => {
     if (options?.role) {
       const user = getUser();
 
-      // If user data missing or role mismatch → redirect
+      // If user data missing or role mismatch → redirect to login
       if (!user || user.role !== options.role) {
-        router.replace("/unauthorized");
+        setAuthorized(false);
+        router.replace("/login");
         return;
       }
     }
+
+    setAuthorized(true);
   }, [router, options?.role]);
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  return { authorized };
 };

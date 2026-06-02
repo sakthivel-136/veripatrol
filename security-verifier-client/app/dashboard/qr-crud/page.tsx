@@ -13,6 +13,7 @@ import {
   fetchFactories,
   QRData,
 } from "@/app/api/qr.api";
+import { useAuthGuard } from "@/app/services/auth.guard";
 
 // ----------------- TYPES -----------------
 
@@ -53,9 +54,12 @@ export default function QrCrudPage() {
         : 15,
   });
 
+  const { authorized } = useAuthGuard();
+
   // ----------------- LOAD DATA -----------------
 
   const loadQRCodes = async (factoryCode: string) => {
+    if (!authorized) return;
     try {
       const rawData = await fetchQRByFactory(factoryCode);
       const mappedData = rawData.map(normalizeQR);
@@ -67,6 +71,7 @@ export default function QrCrudPage() {
   };
 
   const loadFactories = async () => {
+    if (!authorized) return;
     try {
       const data = await fetchFactories();
       setFactories(data);
@@ -82,14 +87,20 @@ export default function QrCrudPage() {
   };
 
   useEffect(() => {
-    loadFactories();
-  }, []);
+    if (authorized) {
+      loadFactories();
+    }
+  }, [authorized]);
 
   // ----------------- FILTERING -----------------
 
   useEffect(() => {
     setFilteredQrCodes(qrCodes);
   }, [qrCodes]);
+
+  if (!authorized) {
+    return <div className="p-6 text-white min-h-screen bg-[#07071f] flex items-center justify-center">Checking access...</div>;
+  }
 
   // ----------------- HANDLERS -----------------
 

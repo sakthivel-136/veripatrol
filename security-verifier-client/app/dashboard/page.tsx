@@ -8,6 +8,7 @@ import {
 } from 'recharts'
 import { getFactories } from '../api/factories.api'
 import { getPatrolReport, PatrolReportItem } from '../api/report'
+import { useAuthGuard } from '@/app/services/auth.guard'
 
 /* ================================================================
    TYPES
@@ -110,6 +111,7 @@ function LeaderRow({ rank, name, scanned, missed, total }: {
 ================================================================ */
 export default function DashboardPage() {
   const router = useRouter()
+  const { authorized } = useAuthGuard()
   const today  = useMemo(() => new Date().toISOString().slice(0, 10), [])
 
   const [adminName, setAdminName]             = useState('')
@@ -122,13 +124,15 @@ export default function DashboardPage() {
 
   /* auth check */
   useEffect(() => {
-    const name = localStorage.getItem('adminName')
-    if (!name) { router.push('/login'); return }
-    setAdminName(name)
-  }, [router])
+    if (authorized) {
+      const name = localStorage.getItem('adminName') || ''
+      setAdminName(name)
+    }
+  }, [authorized])
 
   /* load factories */
   useEffect(() => {
+    if (!authorized) return
     getFactories()
       .then((res: any) => {
         const list: Factory[] = res?.data || res || []
@@ -136,19 +140,25 @@ export default function DashboardPage() {
         if (list.length) setSelectedFactory(list[0].factory_code)
       })
       .catch(() => {})
-  }, [])
+  }, [authorized])
 
   const fetchReport = useCallback(() => {
-    if (!selectedFactory || !selectedDate) return
+    if (!authorized || !selectedFactory || !selectedDate) return
     setLoading(true)
     getPatrolReport(selectedFactory, selectedDate)
       .then(data => { setReport(data); setLastUpdated(new Date().toLocaleTimeString()) })
       .catch(() => setReport([]))
       .finally(() => setLoading(false))
-  }, [selectedFactory, selectedDate])
+  }, [selectedFactory, selectedDate, authorized])
 
   /* auto-fetch when factory/date changes */
-  useEffect(() => { fetchReport() }, [fetchReport])
+  useEffect(() => {
+    fetchReport()
+  }, [fetchReport])
+
+  if (!authorized) {
+    return <div className="p-6 text-white min-h-screen bg-[#07071f] flex items-center justify-center">Checking access...</div>
+  }
 
   /* ================================================================
      COMPUTED STATS (time-aware)

@@ -5,6 +5,7 @@ import { getPatrolReport, PatrolReportItem } from "../api/report";
 import { getFactories } from "../api/factories.api";
 import PatrolReportPDF from "../components/reports/PatrolReportPDF";
 import ReportTable from "../components/reports/ReportTable";
+import { useAuthGuard } from "@/app/services/auth.guard";
 
 // ================= TYPES =================
 type Factory = {
@@ -46,6 +47,7 @@ const IconSpinner = () => (
 
 // ================= PAGE =================
 export default function ReportDownloadPage() {
+  const { authorized } = useAuthGuard();
   const [adminName, setAdminName] = useState("");
   const [factories, setFactories] = useState<Factory[]>([]);
   const [factoryCode, setFactoryCode] = useState("");
@@ -58,18 +60,26 @@ export default function ReportDownloadPage() {
   const [error, setError] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
+  // ================= INITIAL LOAD =================
+  useEffect(() => {
+    if (authorized && factoryCode) {
+      fetchReport();
+    }
+  }, [factoryCode, reportDate, authorized]);
+
   // ================= LOAD ADMIN =================
   useEffect(() => {
-    const name = localStorage.getItem("adminName");
-    if (name && name.trim() !== "") {
-      setAdminName(name);
-    } else {
-      window.location.href = "/login";
+    if (authorized) {
+      const name = localStorage.getItem("adminName");
+      if (name && name.trim() !== "") {
+        setAdminName(name);
+      }
     }
-  }, []);
+  }, [authorized]);
 
   // ================= LOAD FACTORIES =================
   useEffect(() => {
+    if (!authorized) return;
     const load = async () => {
       try {
         const res = await getFactories();
@@ -82,11 +92,11 @@ export default function ReportDownloadPage() {
       }
     };
     load();
-  }, []);
+  }, [authorized]);
 
   // ================= FETCH =================
   const fetchReport = async () => {
-    if (!factoryCode) return;
+    if (!authorized || !factoryCode) return;
 
     setLoading(true);
     setError(null);
@@ -121,6 +131,10 @@ export default function ReportDownloadPage() {
       guard_name: i.guard_name ?? undefined,
     }));
   }, [report]);
+
+  if (!authorized) {
+    return <div className="p-6 text-white min-h-screen bg-[#07071f] flex items-center justify-center">Checking access...</div>;
+  }
 
   const currentFactory = factories.find((f) => f.factory_code === factoryCode);
   const factoryName = currentFactory?.factory_name || factoryCode;

@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { Menu, X, User } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { clearAuth } from '@/app/services/token.service'
 
 const Navbar = () => {
   const pathname = usePathname()
@@ -13,6 +14,13 @@ const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
+
+  const handleLogout = () => {
+    clearAuth()
+    setIsUserMenuOpen(false)
+    setIsMobileMenuOpen(false)
+    router.replace('/login')
+  }
 
   // Updated and reordered navigation items
   const navItems = [
@@ -93,7 +101,7 @@ const Navbar = () => {
                   exit={{ opacity: 0, scale: 0.95, y: -5 }}
                   className="absolute right-0 mt-2 w-40 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5"
                 >
-                  <button onClick={() => router.push('/')} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">Log out</button>
+                  <button onClick={handleLogout} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">Log out</button>
                   <button onClick={() => router.push('/login')} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">Switch User</button>
                   <a 
                     href="https://docs.google.com/uc?export=download&id=14R6VexC8HZ02_GyVLZO97AdmWgOmFAFv" 
@@ -140,7 +148,7 @@ const Navbar = () => {
                 >
                   Download App
                 </a>
-                <button className="block w-full text-left px-3 py-2 text-red-600 hover:bg-red-50">Log out</button>
+                <button onClick={handleLogout} className="block w-full text-left px-3 py-2 text-red-600 hover:bg-red-50">Log out</button>
               </div>
             </div>
           </motion.div>

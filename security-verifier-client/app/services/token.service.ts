@@ -1,7 +1,6 @@
 // app/services/token.service.ts
 
-const TOKEN_KEY = "sv_access_token";
-const USER_KEY = "auth_user";
+const TOKEN_KEY = "access_token";
 
 export interface AuthUser {
   user_id: string;
@@ -36,6 +35,9 @@ export const tokenService = {
     if (typeof window === "undefined") return;
 
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem("role");
+    localStorage.removeItem("name");
+    localStorage.removeItem("adminName");
     
     // Clear cookie
     document.cookie = `${TOKEN_KEY}=; path=/; Max-Age=0; SameSite=Lax;`;
@@ -43,25 +45,29 @@ export const tokenService = {
 };
 
 // ---------------------------
-// User helpers (Preserved)
+// User helpers (Preserved & Adjusted)
 // ---------------------------
 export const setUser = (user: AuthUser) => {
   if (typeof window === "undefined") return;
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  localStorage.setItem("role", user.role);
+  localStorage.setItem("adminName", user.username);
+  localStorage.setItem("name", user.username);
 };
 
 export const getUser = (): AuthUser | null => {
   if (typeof window === "undefined") return null;
 
-  const raw = localStorage.getItem(USER_KEY);
-  if (!raw) return null;
+  const role = localStorage.getItem("role");
+  const adminName = localStorage.getItem("adminName") || localStorage.getItem("name");
+  const token = localStorage.getItem(TOKEN_KEY);
 
-  try {
-    return JSON.parse(raw) as AuthUser;
-  } catch {
-    tokenService.remove();
-    return null;
-  }
+  if (!token || !role || !adminName) return null;
+
+  return {
+    user_id: "",
+    username: adminName,
+    role: role
+  };
 };
 
 // ---------------------------
@@ -84,4 +90,6 @@ export const getTokenFromCookie = (cookieString?: string): string | null => {
 // BACKWARD COMPATIBILITY
 // ---------------------------
 // alias for Navbar imports that might still use removeToken
-export const clearAuth = tokenService.remove; 
+export const clearAuth = () => {
+  tokenService.remove();
+};

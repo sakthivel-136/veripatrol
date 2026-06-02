@@ -6,6 +6,7 @@ import { getFactories } from '@/app/api/factories.api'
 import UsersTable from '@/app/components/users/UsersTable'
 import UserForm from '@/app/components/users/UserForm'
 import { SecurityUser } from '@/app/types/securityUser'
+import { useAuthGuard } from '@/app/services/auth.guard'
 
 interface Factory {
   factory_code: string
@@ -14,6 +15,7 @@ interface Factory {
 }
 
 export default function UserCrudPage() {
+  const { authorized } = useAuthGuard()
   const [users, setUsers] = useState<SecurityUser[]>([])
   const [factories, setFactories] = useState<Factory[]>([])
   const [loading, setLoading] = useState(true)
@@ -23,6 +25,7 @@ export default function UserCrudPage() {
   const [editingUser, setEditingUser] = useState<SecurityUser | null>(null)
 
   const loadData = async () => {
+    if (!authorized) return
     try {
       setLoading(true)
       const usersData = await getSecurityUsers()
@@ -39,8 +42,10 @@ export default function UserCrudPage() {
   }
 
   useEffect(() => {
-    loadData()
-  }, [])
+    if (authorized) {
+      loadData()
+    }
+  }, [authorized])
 
   const handleAddUser = () => {
     setEditingUser(null)
@@ -50,6 +55,10 @@ export default function UserCrudPage() {
   const handleEditUser = (user: SecurityUser) => {
     setEditingUser(user)
     setIsFormOpen(true)
+  }
+
+  if (!authorized) {
+    return <div className="p-6 text-white min-h-screen bg-[#07071f] flex items-center justify-center">Checking access...</div>
   }
 
   if (loading && users.length === 0) {
