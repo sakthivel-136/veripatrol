@@ -1,16 +1,16 @@
 module.exports = {
   apps: [
-    // 1. PYTHON FASTAPI BACKEND CONFIGURATION
+    // 1. PYTHON FASTAPI BACKEND (Universal Cross-Platform)
     {
       name: 'security-verifier-backend',
-      script: './venv/Scripts/uvicorn.exe',
-      args: 'app.main:app --host 0.0.0.0 --port 8000',
+      script: 'npm', // We use an execution wrapper PM2 natively understands
+      args: 'exec -- uvicorn app.main:app --host 0.0.0.0 --port 8000',
       cwd: './security-verifier-server',
-      interpreter: 'none', 
       autorestart: true,
       watch: false
     },
-    // 2. NEXT.JS FRONTEND CONFIGURATION
+
+    // 2. NEXT.JS FRONTEND
     {
       name: 'security-verifier-frontend',
       script: 'npm',
