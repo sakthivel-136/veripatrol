@@ -134,9 +134,22 @@ def delete_factory(factory_code: str, _: dict = Depends(admin_only)):
     if not existing.data:
         raise HTTPException(404, "Factory not found")
 
+    # 1. Delete associated scan points (references factory_code in factory_id field)
+    supabase.table("scan_points") \
+        .delete() \
+        .eq("factory_id", factory_code) \
+        .execute()
+
+    # 2. Delete associated QR codes (references factory_code in factory_code field)
+    supabase.table("qr") \
+        .delete() \
+        .eq("factory_code", factory_code) \
+        .execute()
+
+    # 3. Delete the factory itself
     supabase.table("factories") \
         .delete() \
         .eq("factory_code", factory_code) \
         .execute()
 
-    return {"message": "Factory deleted successfully"}
+    return None

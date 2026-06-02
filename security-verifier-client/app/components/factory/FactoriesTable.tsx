@@ -197,163 +197,166 @@ export const FactoriesTable = () => {
 
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4">
-
-      <h2 className="text-2xl font-bold mb-6">
-        Factories Management
-      </h2>
-
-      {/* Error */}
-      {error && (
-        <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
-          {error}
+    <div className="bg-slate-50 py-6 px-4">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Factories Management</h2>
+            <p className="text-slate-500 mt-1 text-sm font-medium">Create, edit, and manage factory locations</p>
+          </div>
         </div>
-      )}
 
-      {/* Add */}
-      <FactoryForm onSubmit={addFactory} />
+        {/* Error */}
+        {error && (
+          <div className="bg-red-50 text-red-700 border border-red-200 p-4 rounded-xl mb-6 text-sm font-medium shadow-sm">
+            {error}
+          </div>
+        )}
 
+        {/* Add */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm mb-8">
+          <FactoryForm onSubmit={addFactory} />
+        </div>
 
-      {/* Loading */}
-      {loading && (
-        <p className="mt-6 text-gray-500">
-          Loading...
-        </p>
-      )}
-
-
-      {/* Table */}
-      {!loading && (
-        <div className="overflow-x-auto mt-6">
-
-          <table className="min-w-full border">
-
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-2 border">Code</th>
-                <th className="p-2 border">Name</th>
-                <th className="p-2 border">Location</th>
-                <th className="p-2 border">Address</th>
-                <th className="p-2 border">Actions</th>
-              </tr>
-            </thead>
-
-            <tbody>
-
-              {factories.length === 0 && (
+        {/* Loading */}
+        {loading ? (
+          <div className="flex items-center justify-center p-12">
+            <p className="text-slate-500 font-medium">Loading factories...</p>
+          </div>
+        ) : (
+          /* Table */
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-full">
+            <table className="min-w-full divide-y divide-slate-100">
+              <thead className="bg-slate-50">
                 <tr>
-                  <td colSpan={5} className="p-4 text-center">
-                    No factories
-                  </td>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Code
+                  </th>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Address
+                  </th>
+                  <th className="px-6 py-4 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              )}
+              </thead>
 
-              {factories.map((f) => (
+              <tbody className="bg-white divide-y divide-slate-100">
+                {factories.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <div className="bg-slate-50 p-3 rounded-full">
+                          <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                          </svg>
+                        </div>
+                        <p className="text-sm font-medium text-slate-500">No factories found</p>
+                        <p className="text-xs text-slate-400">Add a new factory location to get started.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  factories.map((f) => (
+                    <tr 
+                      key={f.id} 
+                      className="hover:bg-slate-50 transition-colors duration-150 group"
+                    >
+                      {/* Code */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono font-bold text-slate-800">
+                        {f.id}
+                      </td>
 
-                <tr key={f.id}>
+                      {/* Name */}
+                      <td className="px-6 py-4 text-sm font-medium text-slate-700">
+                        {editingId === f.id ? (
+                          <input
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            autoFocus
+                          />
+                        ) : (
+                          f.name
+                        )}
+                      </td>
 
-                  {/* Code */}
-                  <td className="p-2 border">
-                    {f.id}
-                  </td>
+                      {/* Location */}
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        {editingId === f.id ? (
+                          <input
+                            value={editLocation}
+                            onChange={(e) => setEditLocation(e.target.value)}
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        ) : (
+                          f.location || '—'
+                        )}
+                      </td>
 
-                  {/* Name */}
-                  <td className="p-2 border">
+                      {/* Address */}
+                      <td className="px-6 py-4 text-sm text-slate-500">
+                        {editingId === f.id ? (
+                          <input
+                            value={editAddress}
+                            onChange={(e) => setEditAddress(e.target.value)}
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        ) : (
+                          f.address || '—'
+                        )}
+                      </td>
 
-                    {editingId === f.id ? (
-                      <InlineInput
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                      />
-                    ) : (
-                      f.name
-                    )}
-
-                  </td>
-
-                  {/* Location */}
-                  <td className="p-2 border">
-
-                    {editingId === f.id ? (
-                      <InlineInput
-                        value={editLocation}
-                        onChange={(e) => setEditLocation(e.target.value)}
-                      />
-                    ) : (
-                      f.location || '—'
-                    )}
-
-                  </td>
-
-                  {/* Address */}
-                  <td className="p-2 border">
-
-                    {editingId === f.id ? (
-                      <InlineInput
-                        value={editAddress}
-                        onChange={(e) => setEditAddress(e.target.value)}
-                      />
-                    ) : (
-                      f.address || '—'
-                    )}
-
-                  </td>
-
-
-                  {/* Actions */}
-                  <td className="p-2 border text-center">
-
-                    {editingId === f.id ? (
-
-                      <>
-                        <button
-                          onClick={() => saveEdit(f.id)}
-                          className="text-green-600 mr-3"
-                        >
-                          Save
-                        </button>
-
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="text-gray-600"
-                        >
-                          Cancel
-                        </button>
-                      </>
-
-                    ) : (
-
-                      <>
-                        <button
-                          onClick={() => startEdit(f)}
-                          className="text-blue-600 mr-3"
-                        >
-                          Edit
-                        </button>
-
-                        <button
-                          onClick={() => deleteFactory(f.id)}
-                          className="text-red-600"
-                        >
-                          Delete
-                        </button>
-                      </>
-
-                    )}
-
-                  </td>
-
-                </tr>
-
-              ))}
-
-            </tbody>
-
-          </table>
-
-        </div>
-      )}
-
+                      {/* Actions */}
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-3">
+                          {editingId === f.id ? (
+                            <>
+                              <button
+                                onClick={() => saveEdit(f.id)}
+                                className="text-green-600 hover:text-green-800 transition-colors duration-200 font-medium"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => setEditingId(null)}
+                                className="text-slate-600 hover:text-slate-800 transition-colors duration-200 font-medium"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => startEdit(f)}
+                                className="text-slate-600 hover:text-blue-600 transition-colors duration-200 font-medium"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => deleteFactory(f.id)}
+                                className="text-slate-600 hover:text-red-600 transition-colors duration-200 font-medium"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

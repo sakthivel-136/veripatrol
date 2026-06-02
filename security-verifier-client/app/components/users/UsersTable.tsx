@@ -45,90 +45,127 @@ export default function UsersTable({
   }
 
   return (
-    <div className="p-6">
+    <div className="bg-slate-50 py-6 px-4">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* HEADER */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Security Users</h2>
+            <p className="text-slate-500 mt-1 text-sm font-medium">Manage and register security guards and portal admins</p>
+          </div>
+          <button
+            onClick={onAddUser}
+            className="group relative inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg font-semibold shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] transition-all duration-300 hover:bg-blue-700 hover:-translate-y-0.5"
+          >
+            <span>Add Security User</span>
+            <svg className="w-4 h-4 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
 
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-gray-800">Security Users</h2>
-        <button
-          onClick={onAddUser}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition"
-        >
-          Add Security User
-        </button>
-      </div>
-
-      {/* TABLE */}
-      <div className="bg-white rounded shadow overflow-x-auto">
-        <table className="min-w-full border-collapse">
-
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="p-3 border text-left">ID</th>
-              <th className="p-3 border text-left">Name</th>
-              <th className="p-3 border text-left">Password</th>
-              <th className="p-3 border text-left">Factory</th>
-              <th className="p-3 border text-right">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-
-            {users.length === 0 && (
+        {/* TABLE */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-full">
+          <table className="min-w-full divide-y divide-slate-100">
+            <thead className="bg-slate-50">
               <tr>
-                <td colSpan={5} className="p-6 text-center text-gray-500">
-                  No users found
-                </td>
+                <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  ID
+                </th>
+                <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Name
+                </th>
+                <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Password
+                </th>
+                <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Factory
+                </th>
+                <th className="px-6 py-4 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
-            )}
+            </thead>
 
-            {users.map((user) => (
-              <tr key={user.security_id}>
-
-                <td className="p-3 border">{user.security_id}</td>
-                <td className="p-3 border">{user.security_name}</td>
-
-                <td className="p-3 border flex gap-2 items-center">
-
-                  {visiblePasswords[user.security_id]
-                    ? user.security_password
-                    : '******'}
-
-                  <span
-                    className="cursor-pointer"
-                    onClick={() => togglePassword(user.security_id)}
+            <tbody className="bg-white divide-y divide-slate-100">
+              {users.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <div className="bg-slate-50 p-3 rounded-full">
+                        <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-medium text-slate-500">No security users found</p>
+                      <p className="text-xs text-slate-400">Click the button above to add a user to the system.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                users.map((user) => (
+                  <tr 
+                    key={user.security_id} 
+                    className="hover:bg-slate-50 transition-colors duration-150 group"
                   >
-                    👁️
-                  </span>
+                    {/* ID */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono font-bold text-slate-800">
+                      {user.security_id}
+                    </td>
 
-                </td>
+                    {/* Name */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-700">
+                      {user.security_name}
+                    </td>
 
-                <td className="p-3 border">{user.factory}</td>
+                    {/* Password */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono bg-slate-50 px-2.5 py-1 rounded border border-slate-150">
+                          {visiblePasswords[user.security_id] ? user.security_password : '••••••'}
+                        </span>
+                        <button
+                          onClick={() => togglePassword(user.security_id)}
+                          className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-100 transition-colors"
+                          title={visiblePasswords[user.security_id] ? "Hide Password" : "Show Password"}
+                        >
+                          👁️
+                        </button>
+                      </div>
+                    </td>
 
-                <td className="p-3 border text-right">
-                  <div className="flex gap-3 justify-end">
-                    <button
-                      className="text-blue-600 hover:text-blue-800 font-semibold"
-                      onClick={() => onEditUser(user)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="text-red-600 hover:text-red-800 font-semibold"
-                      onClick={() => handleDelete(user.security_id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
+                    {/* Factory */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                      <span className="bg-indigo-50 text-indigo-700 font-bold px-2.5 py-0.5 rounded text-xs">
+                        {user.factory}
+                      </span>
+                    </td>
 
-              </tr>
-            ))}
-
-          </tbody>
-        </table>
+                    {/* Actions */}
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-3">
+                        <button
+                          onClick={() => onEditUser(user)}
+                          className="text-slate-600 hover:text-blue-600 transition-colors duration-200 font-medium"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(user.security_id)}
+                          className="text-slate-600 hover:text-red-600 transition-colors duration-200 font-medium"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-
     </div>
   )
 }
