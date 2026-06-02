@@ -156,10 +156,6 @@ export default function DashboardPage() {
     fetchReport()
   }, [fetchReport])
 
-  if (!authorized) {
-    return <div className="p-6 text-white min-h-screen bg-[#07071f] flex items-center justify-center">Checking access...</div>
-  }
-
   /* ================================================================
      COMPUTED STATS (time-aware)
   ================================================================ */
@@ -263,6 +259,10 @@ export default function DashboardPage() {
   }, [report, selectedDate, today])
 
   const selectedFactoryName = factories.find(f => f.factory_code === selectedFactory)?.factory_name || selectedFactory
+
+  if (!authorized) {
+    return <div className="p-6 text-white min-h-screen bg-[#07071f] flex items-center justify-center">Checking access...</div>
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
