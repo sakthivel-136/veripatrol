@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ShieldCheck, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { sanitize, fullValidate } from '@/app/lib/sanitize'
 import { getApiUrl } from '@/app/utils/apiUrl'
+import { tokenService } from '@/app/services/token.service'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -86,7 +87,7 @@ export default function LoginPage() {
       }
       const data = await res.json()
       localStorage.clear()
-      localStorage.setItem('access_token', data.access_token)
+      tokenService.set(data.access_token)
       localStorage.setItem('role', data.role)
       localStorage.setItem('name', sanitize(data.name || ''))
       localStorage.setItem('adminName', sanitize(data.name || ''))
