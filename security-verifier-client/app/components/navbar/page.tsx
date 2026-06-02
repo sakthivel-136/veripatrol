@@ -95,6 +95,14 @@ const Navbar = () => {
                 >
                   <button onClick={() => router.push('/')} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">Log out</button>
                   <button onClick={() => router.push('/login')} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">Switch User</button>
+                  <a 
+                    href="https://docs.google.com/uc?export=download&id=14R6VexC8HZ02_GyVLZO97AdmWgOmFAFv" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Download App
+                  </a>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -124,6 +132,14 @@ const Navbar = () => {
               ))}
               <div className="border-t pt-3">
                 <button onClick={() => router.push('/login')} className="block w-full text-left px-3 py-2 hover:bg-gray-50 text-gray-700">Login</button>
+                <a 
+                  href="https://docs.google.com/uc?export=download&id=14R6VexC8HZ02_GyVLZO97AdmWgOmFAFv" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="block w-full text-left px-3 py-2 hover:bg-gray-50 text-gray-700"
+                >
+                  Download App
+                </a>
                 <button className="block w-full text-left px-3 py-2 text-red-600 hover:bg-red-50">Log out</button>
               </div>
             </div>
