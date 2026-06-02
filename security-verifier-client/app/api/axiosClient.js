@@ -1,9 +1,9 @@
 import axios from "axios";
+import { getApiUrl } from "../utils/apiUrl";
 
 /* ================= CONFIG ================= */
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BASE_URL = getApiUrl();
 
 /* ================= CLIENT ================= */
 

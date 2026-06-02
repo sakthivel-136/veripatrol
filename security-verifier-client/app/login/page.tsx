@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { ShieldCheck, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { sanitize, fullValidate } from '@/app/lib/sanitize'
+import { getApiUrl } from '@/app/utils/apiUrl'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -73,8 +74,7 @@ export default function LoginPage() {
     }
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL
-      if (!apiUrl) throw new Error('API URL not configured')
+      const apiUrl = getApiUrl()
       const res = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', accept: 'application/json' },

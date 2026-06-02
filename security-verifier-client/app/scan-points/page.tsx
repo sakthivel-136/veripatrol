@@ -10,6 +10,7 @@ import {
   updateScanPoint,
 } from '../api/scanPoints.api'
 import { useAuthGuard } from '../services/auth.guard'
+import { getApiUrl } from '../utils/apiUrl'
 
 /* ================= TYPES ================= */
 
@@ -36,7 +37,7 @@ export default function ScanPointsPage() {
    /* ================= LOAD FACTORIES ================= */
   useEffect(() => {
     if (!authorized) return
-    const API_BASE_URL = 'http://127.0.0.1:8000'; // Move to .env file in production
+    const API_BASE_URL = getApiUrl();
     const FACTORY_ENDPOINT = `${API_BASE_URL}/factories/minimal`;
 
     console.log(`🔍 Fetching from: ${FACTORY_ENDPOINT}`); // Debug Log

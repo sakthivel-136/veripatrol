@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { FactoryForm } from './FactoryForm'
+import { getApiUrl } from '@/app/utils/apiUrl'
 
 /* ================= INLINE INPUT (outside component to prevent remount) ================= */
 
@@ -56,8 +57,7 @@ export const FactoriesTable = () => {
   const [editLocation, setEditLocation] = useState('')
   const [editAddress, setEditAddress] = useState('')
 
-  const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_URL || '/api'
+  const API_BASE_URL = getApiUrl()
 
   /* ================= LOAD ================= */
 
