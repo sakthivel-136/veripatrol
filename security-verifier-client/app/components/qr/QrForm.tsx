@@ -14,6 +14,7 @@ interface QrFormProps {
 
 export default function QrForm({ qr, factories, isEditMode, onSave, onClose }: QrFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [waitingTimeInput, setWaitingTimeInput] = useState<string>("15");
 
   // Initialize form state
   const [formData, setFormData] = useState<QRCode>({
@@ -23,19 +24,22 @@ export default function QrForm({ qr, factories, isEditMode, onSave, onClose }: Q
     lon: 0,
     status: "inactive",
     factory_code: "",
-    waiting_time: 15, // ✅ default waiting_time
+    waiting_time: 15,
   });
 
   // Populate form when editing or when factories load
   useEffect(() => {
     if (qr) {
-      setFormData({ ...qr, waiting_time: qr.waiting_time ?? 15 });
+      const wt = qr.waiting_time ?? 15;
+      setFormData({ ...qr, waiting_time: wt });
+      setWaitingTimeInput(wt.toString());
     } else if (factories.length > 0) {
       setFormData((prev) => ({
         ...prev,
         factory_code: factories[0].factory_code,
         waiting_time: 15,
       }));
+      setWaitingTimeInput("15");
     }
   }, [qr, factories]);
 
@@ -48,15 +52,31 @@ export default function QrForm({ qr, factories, isEditMode, onSave, onClose }: Q
       return;
     }
 
-    // Ensure waiting_time is valid
-    if (formData.waiting_time === undefined || formData.waiting_time < 0 || isNaN(formData.waiting_time)) {
-      alert("Waiting time must be a non-negative number.");
-      return;
+    // Process waiting_time input
+    const trimmedInput = waitingTimeInput.trim();
+    let finalWaitingTime = 15; // default if empty
+
+    if (trimmedInput !== "") {
+      const parsed = parseInt(trimmedInput, 10);
+      if (isNaN(parsed) || parsed < 0) {
+        alert("Waiting time must be a non-negative number.");
+        return;
+      }
+      if (parsed === 0) {
+        alert("Waiting time cannot be 0.");
+        return;
+      }
+      finalWaitingTime = parsed;
     }
+
+    const updatedFormData = {
+      ...formData,
+      waiting_time: finalWaitingTime,
+    };
 
     setIsSubmitting(true);
     try {
-      await onSave(formData);
+      await onSave(updatedFormData);
     } finally {
       setIsSubmitting(false);
     }
@@ -163,10 +183,9 @@ export default function QrForm({ qr, factories, isEditMode, onSave, onClose }: Q
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Waiting Time (seconds)</label>
             <input
-              type="number"
-              min={0}
-              value={formData.waiting_time ?? 15}
-              onChange={(e) => setFormData({ ...formData, waiting_time: parseInt(e.target.value) || 15 })}
+              type="text"
+              value={waitingTimeInput}
+              onChange={(e) => setWaitingTimeInput(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:bg-white hover:border-slate-300 transition-all"
               required
             />

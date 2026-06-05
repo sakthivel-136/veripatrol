@@ -7,6 +7,7 @@ export interface FactoryFormData {
   name: string
   code: string
   location?: string
+  address?: string
 }
 
 interface Props {
@@ -23,6 +24,7 @@ export const FactoryForm = ({
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [location, setLocation] = useState('')
+  const [address, setAddress] = useState('')
 
   // Pre-fill form for edit
   useEffect(() => {
@@ -30,6 +32,7 @@ export const FactoryForm = ({
       setName(initialData.name)
       setCode(initialData.code)
       setLocation(initialData.location || '')
+      setAddress(initialData.address || '')
     }
   }, [initialData])
 
@@ -41,12 +44,13 @@ export const FactoryForm = ({
       return
     }
 
-    onSubmit({ name, code, location })
+    onSubmit({ name, code, location, address })
 
     if (!initialData) {
       setName('')
       setCode('')
       setLocation('')
+      setAddress('')
     }
   }
 
@@ -57,8 +61,8 @@ export const FactoryForm = ({
     >
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
         
-        {/* Factory Name Input (Takes up 5 cols) */}
-        <div className="md:col-span-5">
+        {/* Factory Name Input (Takes up 6 cols) */}
+        <div className="md:col-span-6">
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">
             Factory Name
           </label>
@@ -71,8 +75,8 @@ export const FactoryForm = ({
           />
         </div>
 
-        {/* Factory Code Input (Takes up 3 cols) */}
-        <div className="md:col-span-3">
+        {/* Factory Code Input (Takes up 6 cols) */}
+        <div className="md:col-span-6">
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">
             Code
           </label>
@@ -86,8 +90,8 @@ export const FactoryForm = ({
           />
         </div>
 
-        {/* Location Input (Takes up 4 cols) */}
-        <div className="md:col-span-4">
+        {/* Location Input (Takes up 6 cols) */}
+        <div className="md:col-span-6">
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">
             Location (Optional)
           </label>
@@ -96,6 +100,20 @@ export const FactoryForm = ({
             placeholder="e.g. Building A"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
+            className="w-full bg-white border border-slate-200 text-slate-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300 transition-all placeholder:text-slate-400"
+          />
+        </div>
+
+        {/* Address Input (Takes up 6 cols) */}
+        <div className="md:col-span-6">
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">
+            Address (Optional)
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. 1/407, SIDCO Industrial Estate"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
             className="w-full bg-white border border-slate-200 text-slate-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300 transition-all placeholder:text-slate-400"
           />
         </div>
