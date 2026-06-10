@@ -32,12 +32,18 @@ app = FastAPI(
 
 
 # -----------------------------
-# CORS (FIXED - DEV MODE)
+# CORS CONFIGURATION
 # -----------------------------
+origins = [
+    "http://localhost:3000",
+    "http://172.16.16.100:3000",
+    "https://apps.pentagontextiles.com"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],        # Allow all origins (DEV only)
-    allow_credentials=False,   # Must be False when using "*"
+    allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
