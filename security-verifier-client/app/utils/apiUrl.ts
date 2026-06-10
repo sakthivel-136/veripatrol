@@ -1,4 +1,9 @@
 export const getApiUrl = (): string => {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1") && !envUrl.includes("0.0.0.0")) {
+    return envUrl;
+  }
+
   if (typeof window !== "undefined") {
     const hostname = window.location.hostname;
     if (hostname.includes("trycloudflare.com")) {
@@ -7,12 +12,9 @@ export const getApiUrl = (): string => {
     if (hostname === "apps.pentagontextiles.com") {
       return `https://${hostname}:8000`;
     }
-    const resolvedHost = (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0")
-      ? "172.16.16.100"
-      : hostname;
-    return `http://${resolvedHost}:8000`;
+    // Always use the static IP for local connections
+    return "http://172.16.16.100:8000";
   }
-  const envUrl = process.env.NEXT_PUBLIC_API_URL || "http://172.16.16.100:8000";
-  return envUrl.replace("0.0.0.0", "172.16.16.100").replace("127.0.0.1", "172.16.16.100").replace("localhost", "172.16.16.100");
+  return "http://172.16.16.100:8000";
 };
 
