@@ -158,13 +158,15 @@ const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
     const dates = [...new Set(logs.map((l) => l.date || reportDate))].sort();
 
     dates.forEach((d, dateIdx) => {
+      // Start each new date on a new page
+      if (dateIdx > 0) {
+        doc.addPage();
+        drawBorder(doc);
+        y = 20;
+      }
+
       // Add Date Header if multi-day report
       if (dates.length > 1) {
-        if (y > height - 40) {
-          doc.addPage();
-          drawBorder(doc);
-          y = 20;
-        }
         doc.setFont("times", "bold");
         doc.setFontSize(14);
         doc.setTextColor(0, 70, 160);
@@ -190,6 +192,11 @@ const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
         .map(Number)
         .sort((a, b) => a - b)
         .forEach((round) => {
+          // Omit rounds with no data
+          if (byRound[round].length === 0) {
+            return;
+          }
+
           if (y > height - 50) {
             doc.addPage();
             drawBorder(doc);
@@ -211,24 +218,17 @@ const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
           y += 6;
 
           // ================= Rows =================
-          let rows: any[] = [];
-
-          if (byRound[round].length === 0) {
-            rows.push(["-", "-", "-", "-", "-", "No Data"]);
-          } else {
-            rows = byRound[round].map((l) => {
-              const hasTime = !!l.scan_time;
-              const status = hasTime ? normalizeStatus(l.status) : "No Data";
-              return [
-                l.scan_time ? new Date(l.scan_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "-",
-                l.guard_name || "-",
-                l.qr_name || "-",
-                l.lat || "-",
-                l.lon || "-",
-                status,
-              ];
-            });
-          }
+          const rows = byRound[round].map((l) => {
+            const status = l.status === "SUCCESS" ? "SUCCESS" : "MISSED";
+            return [
+              l.scan_time ? new Date(l.scan_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "-",
+              l.guard_name || "-",
+              l.qr_name || "-",
+              l.lat || "-",
+              l.lon || "-",
+              status,
+            ];
+          });
 
           // ================= Table =================
           autoTable(doc, {
@@ -279,6 +279,11 @@ const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
 
           y = (doc as any).lastAutoTable.finalY + 12;
         });
+
+      if (dateIdx < dates.length - 1) {
+        y += 4;
+      }
+    });
 
       if (dateIdx < dates.length - 1) {
         y += 4;
