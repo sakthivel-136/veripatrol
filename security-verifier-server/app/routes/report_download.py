@@ -101,9 +101,12 @@ def download_report(
         # ==============================
         report = []
         current_dt = start_dt
+        now_ist = datetime.now(IST)
+        today_str = now_ist.strftime("%Y-%m-%d")
 
         while current_dt <= end_dt:
             date_str = current_dt.strftime("%Y-%m-%d")
+            is_today = (date_str == today_str)
             round_slots = generate_round_slots(date_str)
 
             for qr in qr_codes:
@@ -139,7 +142,11 @@ def download_report(
                         else:
                             status = "MISSED"
                     else:
-                        status = "MISSED"
+                        # Future round (today only) → PENDING, past → MISSED
+                        if is_today and start_slot_dt > now_ist:
+                            status = "PENDING"
+                        else:
+                            status = "MISSED"
 
                     report.append({
                         "qr_name": qr["qr_name"],

@@ -75,8 +75,12 @@ const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
       return "SUCCESS";
     }
 
-    if (s === "missed" || s === "pending") {
+    if (s === "missed") {
       return "MISSED";
+    }
+
+    if (s === "pending") {
+      return "PENDING";
     }
 
     return "No Data";
@@ -255,6 +259,10 @@ const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
                 }
                 if (data.cell.raw === "MISSED") {
                   data.cell.styles.textColor = [200, 0, 0];
+                  data.cell.styles.fontStyle = "bold";
+                }
+                if (data.cell.raw === "PENDING") {
+                  data.cell.styles.textColor = [200, 150, 0];
                   data.cell.styles.fontStyle = "bold";
                 }
                 if (data.cell.raw === "No Data") {

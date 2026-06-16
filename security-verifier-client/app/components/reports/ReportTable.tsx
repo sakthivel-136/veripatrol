@@ -59,7 +59,7 @@ const ReportTable: React.FC<ReportTableProps> = ({ logs, loading }) => {
   const normalizeStatus = (
     status?: string | null,
     scanTime?: string | null
-  ): "SUCCESS" | "MISSED" | "No Data" => {
+  ): "SUCCESS" | "MISSED" | "PENDING" | "No Data" => {
 
     if (!status) return "No Data";
 
@@ -73,8 +73,12 @@ const ReportTable: React.FC<ReportTableProps> = ({ logs, loading }) => {
       return "SUCCESS";
     }
 
-    if (s === "missed" || s === "pending") {
+    if (s === "missed") {
       return "MISSED";
+    }
+
+    if (s === "pending") {
+      return "PENDING";
     }
 
     // If no scan time and status is unrecognized
@@ -244,6 +248,10 @@ const ReportTable: React.FC<ReportTableProps> = ({ logs, loading }) => {
 
       if (finalStatus === "MISSED") {
         color = "bg-red-100 text-red-800";
+      }
+
+      if (finalStatus === "PENDING") {
+        color = "bg-amber-100 text-amber-800";
       }
 
       if (finalStatus === "No Data") {
