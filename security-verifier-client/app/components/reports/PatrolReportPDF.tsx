@@ -286,11 +286,6 @@ const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
       }
     });
 
-      if (dateIdx < dates.length - 1) {
-        y += 4;
-      }
-    });
-
 
     // ================= Footer =================
     // ================= Footer =================
