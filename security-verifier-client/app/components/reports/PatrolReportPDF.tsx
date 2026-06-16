@@ -75,7 +75,7 @@ const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
       return "SUCCESS";
     }
 
-    if (s === "missed") {
+    if (s === "missed" || s === "pending") {
       return "MISSED";
     }
 
@@ -210,8 +210,7 @@ const PatrolReportPDF: React.FC<PatrolReportPDFProps> = ({
 
           // ================= Rows =================
           const rows = byRound[round].map((l) => {
-            const hasTime = !!l.scan_time;
-            const status = hasTime ? normalizeStatus(l.status) : "No Data";
+            const status = normalizeStatus(l.status);
             return [
               l.scan_time ? new Date(l.scan_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "-",
               l.guard_name || "-",

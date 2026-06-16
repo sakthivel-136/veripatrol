@@ -61,9 +61,6 @@ const ReportTable: React.FC<ReportTableProps> = ({ logs, loading }) => {
     scanTime?: string | null
   ): "SUCCESS" | "MISSED" | "No Data" => {
 
-    // If no time → PROGRESS
-    if (!scanTime) return "No Data";
-
     if (!status) return "No Data";
 
     const s = status.toLowerCase().trim();
@@ -76,9 +73,12 @@ const ReportTable: React.FC<ReportTableProps> = ({ logs, loading }) => {
       return "SUCCESS";
     }
 
-    if (s === "missed") {
+    if (s === "missed" || s === "pending") {
       return "MISSED";
     }
+
+    // If no scan time and status is unrecognized
+    if (!scanTime) return "No Data";
 
     return "No Data";
   };

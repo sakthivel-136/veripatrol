@@ -45,17 +45,27 @@ def download_report(
         )
 
         # ==============================
-        # 2. Fetch scan logs for the range
+        # 2. Fetch ALL scan logs for the range (paginated to avoid 1000-row limit)
         # ==============================
-        scans = (
-            db.table("scanning_details")
-            .select("id, qr_id, guard_name, scan_time, lat, log, status, round_slot")
-            .eq("factory_code", factory_code)
-            .gte("scan_time", f"{start_date}T00:00:00+05:30")
-            .lte("scan_time", f"{end_date}T23:59:59+05:30")
-            .execute()
-            .data or []
-        )
+        scans = []
+        page_size = 1000
+        offset = 0
+        while True:
+            batch = (
+                db.table("scanning_details")
+                .select("id, qr_id, guard_name, scan_time, lat, log, status, round_slot")
+                .eq("factory_code", factory_code)
+                .gte("scan_time", f"{start_date}T00:00:00+05:30")
+                .lte("scan_time", f"{end_date}T23:59:59+05:30")
+                .order("scan_time")
+                .range(offset, offset + page_size - 1)
+                .execute()
+                .data or []
+            )
+            scans.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
 
         # ==============================
         # 3. Parse round_slot and scan_time for all scans

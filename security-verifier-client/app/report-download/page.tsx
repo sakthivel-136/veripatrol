@@ -334,13 +334,7 @@ export default function ReportDownloadPage() {
           <div className="hidden">
             <PatrolReportPDF
               key={pdfTrigger}
-              logs={cleanLogs.map((log) => ({
-                ...log,
-                status:
-                  log.status === "PENDING"
-                    ? "MISSED"
-                    : log.status,
-              }))}
+              logs={cleanLogs}
               factoryCode={factoryCode}
               factoryName={factoryName}
               factoryAddress={currentFactory?.factory_address || "N/A"}
