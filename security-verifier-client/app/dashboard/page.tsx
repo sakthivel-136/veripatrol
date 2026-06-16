@@ -170,15 +170,38 @@ export default function DashboardPage() {
     const isToday = selectedDate === today
 
     /* ── time-boundary ── */
+    const ROUND_TIMES = [
+      "00:00","00:30","01:00","01:30","02:00","02:30","03:00","03:30",
+      "04:00","04:30","05:00","05:30","06:00","07:00","08:00","09:00",
+      "10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00",
+      "18:00","19:00","20:00","21:00","21:30","22:00","22:30","23:00","23:30"
+    ];
+
+    let dueRoundsCount = ROUND_TIMES.length;
+    if (isToday) {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      dueRoundsCount = 0;
+      for (let i = 0; i < ROUND_TIMES.length; i++) {
+        const [h, m] = ROUND_TIMES[i].split(':').map(Number);
+        if (currentHour > h || (currentHour === h && currentMinute >= m)) {
+          dueRoundsCount = i + 1;
+        } else {
+          break;
+        }
+      }
+    }
+
     const scannedRounds = report.filter(r => r.scan_time !== null).map(r => r.round)
     const maxScannedRound = scannedRounds.length ? Math.max(...scannedRounds) : 0
     const nothingScannedToday = isToday && maxScannedRound === 0
-    const isPartialDay = isToday && maxScannedRound > 0
+    const isPartialDay = isToday && dueRoundsCount < ROUND_TIMES.length
 
-    const effective = isPartialDay
-      ? report.filter(r => r.round <= maxScannedRound + 1)
+    const effective = isToday
+      ? report.filter(r => r.round <= dueRoundsCount || r.status === 'SUCCESS')
       : report
-    const pending = isToday ? report.length - effective.length : 0
+    const pending = report.length - effective.length
 
     /* ── base stats ── */
     const completed = effective.filter(r => r.status === 'SUCCESS').length
@@ -208,14 +231,26 @@ export default function DashboardPage() {
       }
     })
 
-    /* ── guard leaderboard ── */
+    /* ── guard leaderboard with smart missed-scan assignment ── */
     const guardMap: Record<string, { scanned: number; missed: number }> = {}
-    effective.forEach(r => {
-      const g = r.guard_name || 'Unknown'
-      if (!guardMap[g]) guardMap[g] = { scanned: 0, missed: 0 }
-      if (r.status === 'SUCCESS') guardMap[g].scanned++
-      else if (!nothingScannedToday) guardMap[g].missed++
+    roundNums.forEach(rnd => {
+      const roundScans = effective.filter(r => r.round === rnd)
+      const guardsInRound = [...new Set(roundScans.filter(r => r.status === 'SUCCESS' && r.guard_name).map(r => r.guard_name as string))]
+      const assignedGuard = guardsInRound.length > 0 ? guardsInRound[0] : null
+
+      roundScans.forEach(r => {
+        if (r.status === 'SUCCESS') {
+          const g = r.guard_name || 'Unknown'
+          if (!guardMap[g]) guardMap[g] = { scanned: 0, missed: 0 }
+          guardMap[g].scanned++
+        } else if (!nothingScannedToday) {
+          const g = assignedGuard || 'Unknown'
+          if (!guardMap[g]) guardMap[g] = { scanned: 0, missed: 0 }
+          guardMap[g].missed++
+        }
+      })
     })
+
     const guardLeaderboard = Object.entries(guardMap)
       .filter(([n, d]) => n !== 'Unknown' || d.scanned > 0)
       .map(([name, d]) => ({ name, ...d, total: d.scanned + d.missed }))

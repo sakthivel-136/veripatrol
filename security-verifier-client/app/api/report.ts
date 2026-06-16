@@ -12,6 +12,7 @@ export interface PatrolReportItem {
   lon: string | null;
   guard_name: string | null;
   status: "SUCCESS" | "MISSED" | "PENDING";
+  date?: string;
 }
 
 export interface PatrolReportResponse {
@@ -54,7 +55,8 @@ api.interceptors.request.use((config) => {
 
 async function fetchPatrolReportData(
   factoryCode: string,
-  reportDate: string
+  reportDate: string,
+  endDate?: string
 ): Promise<PatrolReportItem[]> {
 
   try {
@@ -67,6 +69,7 @@ async function fetchPatrolReportData(
         params: {
           factory_code: factoryCode,
           report_date: reportDate,
+          ...(endDate ? { end_date: endDate } : {}),
         },
       }
     );
@@ -106,9 +109,10 @@ async function fetchPatrolReportData(
 
 export async function getPatrolReport(
   factoryCode: string,
-  reportDate: string
+  reportDate: string,
+  endDate?: string
 ): Promise<PatrolReportItem[]> {
-  return fetchPatrolReportData(factoryCode, reportDate);
+  return fetchPatrolReportData(factoryCode, reportDate, endDate);
 }
 
 /* =====================================================
@@ -117,10 +121,11 @@ export async function getPatrolReport(
 
 export async function getPatrolReportPDF(
   factoryCode: string,
-  reportDate: string
+  reportDate: string,
+  endDate?: string
 ): Promise<PatrolReportResponse> {
 
-  const items = await fetchPatrolReportData(factoryCode, reportDate);
+  const items = await fetchPatrolReportData(factoryCode, reportDate, endDate);
 
   return {
     factory_code: factoryCode,

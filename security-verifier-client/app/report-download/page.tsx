@@ -46,12 +46,16 @@ const IconSpinner = () => (
 );
 
 // ================= PAGE =================
+// ================= PAGE =================
 export default function ReportDownloadPage() {
   const { authorized } = useAuthGuard();
   const [adminName, setAdminName] = useState("");
   const [factories, setFactories] = useState<Factory[]>([]);
   const [factoryCode, setFactoryCode] = useState("");
   const [reportDate, setReportDate] = useState(new Date().toISOString().slice(0, 10));
+  const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 10));
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [reportType, setReportType] = useState<"single" | "range" | "month">("single");
   const [report, setReport] = useState<PatrolReportItem[]>([]);
 
   const [loading, setLoading] = useState(false);
@@ -65,7 +69,7 @@ export default function ReportDownloadPage() {
     if (authorized && factoryCode) {
       fetchReport();
     }
-  }, [factoryCode, reportDate, authorized]);
+  }, [factoryCode, reportDate, endDate, selectedMonth, reportType, authorized]);
 
   // ================= LOAD ADMIN =================
   useEffect(() => {
@@ -102,10 +106,24 @@ export default function ReportDownloadPage() {
     setError(null);
     setPdfTrigger(null);
 
+    let start = reportDate;
+    let end = reportDate;
+
+    if (reportType === "range") {
+      start = reportDate;
+      end = endDate;
+    } else if (reportType === "month") {
+      const [year, month] = selectedMonth.split("-").map(Number);
+      const lastDay = new Date(year, month, 0); // last day of current month
+      const pad = (n: number) => String(n).padStart(2, "0");
+      start = `${year}-${pad(month)}-01`;
+      end = `${year}-${pad(month)}-${pad(lastDay.getDate())}`;
+    }
+
     try {
-      const data = await getPatrolReport(factoryCode, reportDate);
+      const data = await getPatrolReport(factoryCode, start, end);
       setReport(data);
-      if (data.length === 0) setError("No patrol records found for this date.");
+      if (data.length === 0) setError("No patrol records found for this timeframe.");
     } catch (err) {
       setError("Failed to fetch report data. Please try again.");
       console.error(err);
@@ -168,10 +186,44 @@ export default function ReportDownloadPage() {
             </div>
           )}
 
+          {/* Toggle buttons for Report Type */}
+          <div className="flex gap-2 mb-6 border-b pb-4">
+            <button
+              onClick={() => setReportType("single")}
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                reportType === "single"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              One Day Report
+            </button>
+            <button
+              onClick={() => setReportType("range")}
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                reportType === "range"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              Date Range Report
+            </button>
+            <button
+              onClick={() => setReportType("month")}
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                reportType === "month"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              Month-wise Report
+            </button>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
 
             {/* FACTORY */}
-            <div className="md:col-span-5">
+            <div className={reportType === "range" ? "md:col-span-3" : "md:col-span-5"}>
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Factory Location
               </label>
@@ -188,25 +240,68 @@ export default function ReportDownloadPage() {
               </select>
             </div>
 
-            {/* DATE */}
-            <div className="md:col-span-4">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Patrol Date
-              </label>
-              <input
-                type="date"
-                className="w-full mt-2 pl-3 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg"
-                value={reportDate}
-                onChange={(e) => setReportDate(e.target.value)}
-              />
-            </div>
+            {/* DATE SELECTORS BASED ON TYPE */}
+            {reportType === "single" && (
+              <div className="md:col-span-4">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Patrol Date
+                </label>
+                <input
+                  type="date"
+                  className="w-full mt-2 pl-3 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg"
+                  value={reportDate}
+                  onChange={(e) => setReportDate(e.target.value)}
+                />
+              </div>
+            )}
+
+            {reportType === "range" && (
+              <>
+                <div className="md:col-span-3">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    From Date
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full mt-2 pl-3 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg"
+                    value={reportDate}
+                    onChange={(e) => setReportDate(e.target.value)}
+                  />
+                </div>
+                <div className="md:col-span-3">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    To Date
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full mt-2 pl-3 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
+            {reportType === "month" && (
+              <div className="md:col-span-4">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Select Month
+                </label>
+                <input
+                  type="month"
+                  className="w-full mt-2 pl-3 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                />
+              </div>
+            )}
 
             {/* BUTTONS */}
             <div className="md:col-span-3 flex gap-3">
               <button
                 onClick={fetchReport}
                 disabled={loading}
-                className="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg"
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg flex items-center justify-center"
               >
                 {loading ? <IconSpinner /> : "View Report"}
               </button>
@@ -249,7 +344,13 @@ export default function ReportDownloadPage() {
               factoryCode={factoryCode}
               factoryName={factoryName}
               factoryAddress={currentFactory?.factory_address || "N/A"}
-              reportDate={reportDate}
+              reportDate={
+                reportType === "single"
+                  ? reportDate
+                  : reportType === "range"
+                  ? `${reportDate} to ${endDate}`
+                  : `${new Date(selectedMonth + "-02").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}`
+              }
               generatedBy={adminName}
             />
           </div>

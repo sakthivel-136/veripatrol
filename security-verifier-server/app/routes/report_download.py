@@ -17,21 +17,24 @@ IST = pytz.timezone("Asia/Kolkata")
 @router.get("/download")
 def download_report(
     factory_code: str = Query(...),
-    report_date: str = Query(...),
+    report_date: str = Query(..., description="Start date (YYYY-MM-DD)"),
+    end_date: str = Query(None, description="End date (YYYY-MM-DD)"),
     db=Depends(get_db),
     _: dict = Depends(get_current_user),
 ):
 
     try:
+        from datetime import date, timedelta
+
+        # Parse date range
+        start_date = report_date
+        end_date = end_date or report_date
+
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d").date()
 
         # ==============================
-        # 1. Generate rounds
-        # ==============================
-        round_slots = generate_round_slots(report_date)
-
-
-        # ==============================
-        # 2. Fetch QR codes
+        # 1. Fetch QR codes
         # ==============================
         qr_codes = (
             db.table("qr")
@@ -41,28 +44,24 @@ def download_report(
             .data or []
         )
 
-
         # ==============================
-        # 3. Fetch scan logs
+        # 2. Fetch scan logs for the range
         # ==============================
         scans = (
             db.table("scanning_details")
             .select("id, qr_id, guard_name, scan_time, lat, log, status, round_slot")
             .eq("factory_code", factory_code)
-            .gte("scan_time", f"{report_date}T00:00:00+05:30")
-            .lte("scan_time", f"{report_date}T23:59:59+05:30")
+            .gte("scan_time", f"{start_date}T00:00:00+05:30")
+            .lte("scan_time", f"{end_date}T23:59:59+05:30")
             .execute()
             .data or []
         )
 
-
         # ==============================
-        # 4. Parse round_slot
+        # 3. Parse round_slot for all scans
         # ==============================
         for s in scans:
-
             rs = s.get("round_slot")
-
             if not rs:
                 s["round_dt"] = None
                 continue
@@ -76,70 +75,58 @@ def download_report(
 
             s["round_dt"] = dt
 
-
         # ==============================
-        # 5. Build report
+        # 4. Build report day-by-day
         # ==============================
         report = []
+        current_dt = start_dt
 
+        while current_dt <= end_dt:
+            date_str = current_dt.strftime("%Y-%m-%d")
+            round_slots = generate_round_slots(date_str)
 
-        for qr in qr_codes:
+            for qr in qr_codes:
+                qr_id = str(qr["qr_id"])
 
-            qr_id = str(qr["qr_id"])   # normalize
+                for round_no, start_slot_dt, end_slot_dt in round_slots:
+                    scan = next(
+                        (
+                            s for s in scans
+                            if str(s.get("qr_id")) == qr_id
+                            and s.get("round_dt") == start_slot_dt
+                        ),
+                        None
+                    )
 
-
-            for round_no, start_dt, end_dt in round_slots:
-
-                scan = next(
-                    (
-                        s for s in scans
-                        if str(s.get("qr_id")) == qr_id
-                        and s.get("round_dt") == start_dt
-                    ),
-                    None
-                )
-
-
-                # Normalize status
-                if scan:
-
-                    raw = (scan.get("status") or "").lower()
-
-                    if raw in ["success", "completed", "done"]:
-                        status = "SUCCESS"
+                    # Normalize status
+                    if scan:
+                        raw = (scan.get("status") or "").lower()
+                        if raw in ["success", "completed", "done"]:
+                            status = "SUCCESS"
+                        else:
+                            status = "MISSED"
                     else:
                         status = "MISSED"
 
-                else:
-                    status = "MISSED"
+                    report.append({
+                        "qr_name": qr["qr_name"],
+                        "round": round_no,
+                        "scan_time": scan.get("scan_time") if scan else None,
+                        "lat": scan.get("lat") if scan else None,
+                        "lon": scan.get("log") if scan else None,
+                        "guard_name": scan.get("guard_name") if scan else None,
+                        "status": status,
+                        "date": date_str,
+                    })
 
-
-                report.append({
-
-                    "qr_name": qr["qr_name"],
-
-                    "round": round_no,
-
-                    "scan_time": scan.get("scan_time") if scan else None,
-
-                    "lat": scan.get("lat") if scan else None,
-
-                    "lon": scan.get("log") if scan else None,
-
-                    "guard_name": scan.get("guard_name") if scan else None,
-
-                    "status": status,
-                })
-
+            current_dt += timedelta(days=1)
 
         return report
 
-
     except Exception as e:
-
         print("❌ REPORT ERROR:", e)
-
         return {
             "success": False,
             "message": str(e)
         }
+
