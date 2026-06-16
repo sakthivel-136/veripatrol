@@ -58,22 +58,33 @@ def download_report(
         )
 
         # ==============================
-        # 3. Parse round_slot for all scans
+        # 3. Parse round_slot and scan_time for all scans
         # ==============================
         for s in scans:
             rs = s.get("round_slot")
-            if not rs:
-                s["round_dt"] = None
-                continue
+            st = s.get("scan_time")
 
-            dt = datetime.fromisoformat(rs.replace("Z", "+00:00"))
-
-            if dt.tzinfo is None:
-                dt = IST.localize(dt)
+            # Parse round_dt from round_slot
+            if rs:
+                dt = datetime.fromisoformat(rs.replace("Z", "+00:00"))
+                if dt.tzinfo is None:
+                    dt = IST.localize(dt)
+                else:
+                    dt = dt.astimezone(IST)
+                s["round_dt"] = dt
             else:
-                dt = dt.astimezone(IST)
+                s["round_dt"] = None
 
-            s["round_dt"] = dt
+            # Parse scan_dt_ist from scan_time as fallback
+            if st:
+                dt = datetime.fromisoformat(st.replace("Z", "+00:00"))
+                if dt.tzinfo is None:
+                    dt = IST.localize(dt)
+                else:
+                    dt = dt.astimezone(IST)
+                s["scan_dt_ist"] = dt
+            else:
+                s["scan_dt_ist"] = None
 
         # ==============================
         # 4. Build report day-by-day
@@ -97,6 +108,18 @@ def download_report(
                         ),
                         None
                     )
+
+                    # Fallback for older scans without round_slot
+                    if not scan:
+                        scan = next(
+                            (
+                                s for s in scans
+                                if str(s.get("qr_id")) == qr_id
+                                and s.get("scan_dt_ist")
+                                and start_slot_dt <= s.get("scan_dt_ist") < end_slot_dt
+                            ),
+                            None
+                        )
 
                     # Normalize status
                     if scan:
