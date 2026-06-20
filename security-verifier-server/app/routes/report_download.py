@@ -46,16 +46,24 @@ def download_report(
 
         # ==============================
         # 2. Fetch ALL scan logs for the range (paginated to avoid 1000-row limit)
+        #    Buffer 30 min before start_date to catch guards who begin
+        #    Round 1 patrol slightly before midnight
         # ==============================
         scans = []
         page_size = 1000
         offset = 0
+        fetch_start = f"{start_date}T00:00:00+05:30"
+        # Extend fetch window 30 min before midnight to capture early Round 1 scans
+        fetch_start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        fetch_start_dt = IST.localize(fetch_start_dt) - timedelta(minutes=30)
+        fetch_start = fetch_start_dt.strftime("%Y-%m-%dT%H:%M:%S+05:30")
+
         while True:
             batch = (
                 db.table("scanning_details")
                 .select("id, qr_id, guard_name, scan_time, lat, log, status, round_slot")
                 .eq("factory_code", factory_code)
-                .gte("scan_time", f"{start_date}T00:00:00+05:30")
+                .gte("scan_time", fetch_start)
                 .lte("scan_time", f"{end_date}T23:59:59+05:30")
                 .order("scan_time")
                 .range(offset, offset + page_size - 1)
@@ -123,13 +131,15 @@ def download_report(
                     )
 
                     # Fallback for older scans without round_slot
+                    # Allow 10-min grace before round start for guards who begin early
                     if not scan:
+                        grace = timedelta(minutes=10)
                         scan = next(
                             (
                                 s for s in scans
                                 if str(s.get("qr_id")) == qr_id
                                 and s.get("scan_dt_ist")
-                                and start_slot_dt <= s.get("scan_dt_ist") < end_slot_dt
+                                and (start_slot_dt - grace) <= s.get("scan_dt_ist") < end_slot_dt
                             ),
                             None
                         )
