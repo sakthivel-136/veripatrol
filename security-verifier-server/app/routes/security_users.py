@@ -99,11 +99,16 @@ def create_security_user(payload: SecurityUserCreate, _: dict = Depends(admin_on
         "factory": payload.factory
     }
 
-    result = supabase.table("security_users") \
-        .insert(data) \
-        .execute()
-
-    return result.data[0]
+    try:
+        result = supabase.table("security_users") \
+            .insert(data) \
+            .execute()
+        return result.data[0]
+    except Exception as e:
+        err_msg = str(e)
+        if "23505" in err_msg or "already exists" in err_msg:
+            raise HTTPException(400, "Security ID already exists")
+        raise HTTPException(500, f"Database error: {err_msg}")
 
 
 # -----------------------------

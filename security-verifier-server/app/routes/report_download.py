@@ -107,6 +107,19 @@ def download_report(
         # ==============================
         # 4. Build report day-by-day
         # ==============================
+        # Build dictionaries for O(1) lookup
+        scans_by_round_qr = {}
+        scans_by_qr = {}
+        for s in scans:
+            qr_id_str = str(s.get("qr_id"))
+            round_dt = s.get("round_dt")
+            if round_dt:
+                scans_by_round_qr[(round_dt, qr_id_str)] = s
+            
+            if qr_id_str not in scans_by_qr:
+                scans_by_qr[qr_id_str] = []
+            scans_by_qr[qr_id_str].append(s)
+
         report = []
         current_dt = start_dt
         now_ist = datetime.now(IST)
@@ -121,24 +134,18 @@ def download_report(
                 qr_id = str(qr["qr_id"])
 
                 for round_no, start_slot_dt, end_slot_dt in round_slots:
-                    scan = next(
-                        (
-                            s for s in scans
-                            if str(s.get("qr_id")) == qr_id
-                            and s.get("round_dt") == start_slot_dt
-                        ),
-                        None
-                    )
+                    # O(1) Lookup by round_dt and qr_id
+                    scan = scans_by_round_qr.get((start_slot_dt, qr_id))
 
                     # Fallback for older scans without round_slot
                     # Allow 10-min grace before round start for guards who begin early
                     if not scan:
                         grace = timedelta(minutes=10)
+                        qr_scans = scans_by_qr.get(qr_id, [])
                         scan = next(
                             (
-                                s for s in scans
-                                if str(s.get("qr_id")) == qr_id
-                                and s.get("scan_dt_ist")
+                                s for s in qr_scans
+                                if s.get("scan_dt_ist")
                                 and (start_slot_dt - grace) <= s.get("scan_dt_ist") < end_slot_dt
                             ),
                             None
